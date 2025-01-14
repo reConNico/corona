@@ -34,8 +34,6 @@
 #include "Rtt_LinuxUtils.h"
 #include "Rtt_PreferenceCollection.h"
 #include "Rtt_Freetype.h"
-//#include "wx/wx.h"
-//#include "wx/activityindicator.h"
 #include <pwd.h>
 
 using namespace std;
@@ -75,7 +73,11 @@ namespace Rtt
 		float height = 0;
 		float leading = 0;
 
-		glyph_freetype_provider::getMetrics(font.Name(), font.Size(), &ascent, &descent, &height, &leading);
+		glyph_freetype_provider* gp = getGlyphProvider();
+		if (gp)
+		{
+			gp->getMetrics(font.Name(), font.Size(), &ascent, &descent, &height, &leading);
+		}
 
 		ret["ascent"] = ascent;
 		ret["descent"] = descent;
@@ -166,10 +168,7 @@ namespace Rtt
 
 					if (filename != NULL && FileExists(result.GetString()) == false)
 					{
-						// look in the plugins dir
-						String resDir(GetHomePath());
-						resDir.Append("/.Solar2D/Plugins/");
-						PathForFile(filename, resDir.GetString(), result);
+						PathForFile(filename, GetPluginsPath().c_str(), result);
 						Rtt_WARN_SIM(!filename || FileExists(result.GetString()), ("WARNING: Cannot create path for resource file '%s (%s || %s || %s)'. File does not exist.\n\n", filename, result1.GetString(), result2.GetString(), result.GetString()));
 					}
 					break;
@@ -214,8 +213,7 @@ namespace Rtt
 					std::string pluginPath;
 
 #ifdef Rtt_SIMULATOR
-					pluginPath = GetHomePath();
-					pluginPath.append("/.Solar2D/Plugins");
+					pluginPath = GetPluginsPath();
 #else
 					pluginPath = GetStartupPath(NULL);
 #endif
@@ -285,20 +283,20 @@ namespace Rtt
 
 		// Fetch the requested preference value.
 		const char *resultPointer = "";
-		//wxString localeName = wxLocale::GetLanguageInfo(wxLocale::GetSystemLanguage())->CanonicalName.Lower();
+		string localeName = "en_US"; // hack
 
 		switch (category)
 		{
 			case kLocaleLanguage:
-				//resultPointer = localeName.ToStdString().substr(0, 2).c_str();
+				resultPointer = localeName.substr(0, 2).c_str();
 				break;
 			case kLocaleCountry:
-				//resultPointer = localeName.ToStdString().substr(3, 5).c_str();
+				resultPointer = localeName.substr(3, 2).c_str();
 				break;
 			case kLocaleIdentifier:
 			case kUILanguage:
 			{
-				//resultPointer = localeName.ToStdString().c_str();
+				resultPointer = localeName.c_str();
 				break;
 			}
 			case kDefaultStatusBarFile:

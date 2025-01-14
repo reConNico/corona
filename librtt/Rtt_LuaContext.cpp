@@ -96,6 +96,7 @@ extern "C" {
 	int luaopen_network(lua_State* L);
 	extern "C" {
 		int luaopen_lfs(lua_State* L);
+		int luaopen_plugin_websockets(lua_State* L);
 	}
 #endif
 
@@ -662,6 +663,13 @@ LuaContext::InitializeLuaPath( lua_State* L, const MPlatform& platform )
 					sysResourceDir.GetString(), coronaCardsFrameworksDir, lua_tostring( L, -1 ) );
 	++numPushed;
 #endif
+#if defined( Rtt_MAC_ENV )
+    std::string res = absoluteBase.GetString();
+    res = res.substr(0, res.find_last_of("/"));
+	lua_pushfstring( L, "%s" LUA_DIRSEP "%s" LUA_DIRSEP LUA_PATH_MARK "." Rtt_LUA_C_MODULE_FILE_EXTENSION LUA_PATHSEP "%s",
+					res.c_str(), "Frameworks", lua_tostring( L, -1 ) );
+	++numPushed;
+#endif
 
 	// Prepend pluginsBaseDir
 	if ( pluginsBaseStr )
@@ -833,6 +841,7 @@ LuaContext::InitializeLuaCore( lua_State* L )
 #if defined(Rtt_NXS_ENV)
 		{ "network", luaopen_network },
 		{ "lfs", luaopen_lfs },
+		{ "websockets", luaopen_plugin_websockets },
 		{ "nnTextField", Lua::Open< luaload_nnTextField > },
 		{ "nnTextBox", Lua::Open< luaload_nnTextBox > },
 		{ "nnNativeAlert", Lua::Open< luaload_nnNativeAlert > },

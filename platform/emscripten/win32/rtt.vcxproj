@@ -134,7 +134,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>
       </AdditionalLibraryDirectories>
-      <PreloadFile>C:\corona\platform\test\assets2@/</PreloadFile>
+      <PreloadFile>D:\SampleCode\Graphics\CompositeViewer@/</PreloadFile>
       <AdditionalOptions>-s LEGACY_VM_SUPPORT=1 -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "cwrap"]' -s ALLOW_MEMORY_GROWTH=1 -s USE_SDL=2  --js-library ../Rtt_PlatformWebAudioPlayer.js --js-library ../Rtt_EmscriptenPlatform.js  --js-library ../Rtt_EmscriptenVideo.js -lidbfs.js %(AdditionalOptions)</AdditionalOptions>
       <EmbedFile>
       </EmbedFile>
@@ -559,7 +559,6 @@
     <ClInclude Include="..\Rtt_EmscriptenWebViewObject.h" />
     <ClInclude Include="..\Rtt_LuaLibWebAudio.h" />
     <ClInclude Include="..\Rtt_PlatformWebAudioPlayer.h" />
-    <ClInclude Include="..\win32\Rtt_EmscriptenPlatformWin.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\external\ALmixer\luaal.c" />
@@ -983,7 +982,6 @@
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|Emscripten'">-std=c++11 %(AdditionalOptions)</AdditionalOptions>
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|Emscripten'">-std=c++11 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
-    <ClCompile Include="..\win32\Rtt_EmscriptenPlatformWin.cpp" />
     <ClCompile Include="GeneratedFiles\composer_luaload.cpp" />
     <ClCompile Include="GeneratedFiles\composer_scene_luaload.cpp" />
     <ClCompile Include="GeneratedFiles\CoronaLibrary_luaload.cpp" />
@@ -1025,8 +1023,11 @@
     <ClCompile Include="GeneratedFiles\kernel_composite_yuv420v_gl_luaload.cpp" />
     <ClCompile Include="GeneratedFiles\kernel_default_gl_luaload.cpp" />
     <ClCompile Include="GeneratedFiles\kernel_filter_bloom_gl_luaload.cpp" />
+    <ClCompile Include="GeneratedFiles\kernel_filter_blurGaussianLinear_gl_luaload.cpp" />
     <ClCompile Include="GeneratedFiles\kernel_filter_blurGaussian_gl_luaload.cpp" />
     <ClCompile Include="GeneratedFiles\kernel_filter_blurHorizontal_gl_luaload.cpp" />
+    <ClCompile Include="GeneratedFiles\kernel_filter_blurLinearHorizontal_gl_luaload.cpp" />
+    <ClCompile Include="GeneratedFiles\kernel_filter_blurLinearVertical_gl_luaload.cpp" />
     <ClCompile Include="GeneratedFiles\kernel_filter_blurVertical_gl_luaload.cpp" />
     <ClCompile Include="GeneratedFiles\kernel_filter_blur_gl_luaload.cpp" />
     <ClCompile Include="GeneratedFiles\kernel_filter_brightness_gl_luaload.cpp" />

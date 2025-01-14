@@ -481,6 +481,43 @@ public class ViewManager {
 		} );
 	}
 
+	public int[] getTextSelection(final int id) {
+	    final int[] result = new int[2];
+	    final Object lock = new Object();
+
+	    Runnable runnable = new Runnable() {
+	        @Override
+	        public void run() {
+	            CoronaEditText view = getDisplayObjectById(CoronaEditText.class, id);
+	            if (view != null) {
+	                result[0] = view.getSelectionStart();
+	                result[1] = view.getSelectionEnd();
+	            } else {
+	                result[0] = -1;
+	                result[1] = -1;
+	            }
+	            synchronized (lock) {
+	                lock.notify();
+	            }
+	        }
+	    };
+
+	    if (Thread.currentThread() == Looper.getMainLooper().getThread()) {
+	        runnable.run();
+	    } else {
+	        synchronized (lock) {
+	            postOnUiThread(runnable);
+	            try {
+	                lock.wait();
+	            } catch (InterruptedException e) {
+	                e.printStackTrace();
+	            }
+	        }
+	    }
+
+	    return result;
+	}
+
 	public void setTextViewColor( final int id, final int color )
 	{
 		postOnUiThread( new Runnable() {
@@ -1275,12 +1312,25 @@ public class ViewManager {
 					if (context != null) {
 						// If the given URL is to a local file within the APK or expansion file,
 						// then create a content URI for it.
+						String path = url;
+						String suffix = "";
 						com.ansca.corona.storage.FileServices fs = new com.ansca.corona.storage.FileServices(context);
-						if (fs.doesAssetFileExist(url)) {
+						try {
+							android.net.Uri uri = android.net.Uri.parse(url);
+							if(uri.getScheme() == null) {
+								path = uri.getPath();
+								int index = url.indexOf(path);
+								if(index>=0) {
+									suffix = url.substring(index+path.length());
+								}
+							}
+						} catch (Throwable ignore) { }
+
+						if (fs.doesAssetFileExist(path)) {
 							android.net.Uri contentProviderUri =
-									com.ansca.corona.storage.FileContentProvider.createContentUriForFile(context, url);
+									com.ansca.corona.storage.FileContentProvider.createContentUriForFile(context, path);
 							if (contentProviderUri != null) {
-								url = contentProviderUri.toString();
+								url = contentProviderUri.toString() + suffix;
 							}
 						}
 					}

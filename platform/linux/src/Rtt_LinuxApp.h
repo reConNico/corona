@@ -23,74 +23,167 @@
 #include "Rtt_LinuxRuntimeDelegate.h"
 #include "Rtt_LinuxKeyListener.h"
 #include "Rtt_LinuxMouseListener.h"
-#include "Rtt_LinuxRelaunchProjectDialog.h"
 #include "Rtt_LinuxPlatform.h"
 #include "Rtt_LinuxContext.h"
-#include "wx/app.h"
-#include "wx/frame.h"
-#include "wx/panel.h"
-#include "wx/stattext.h"
-#include "wx/glcanvas.h"
-#include <string>
+#include "Rtt_LinuxContainer.h"
+#include "Rtt_LinuxDialog.h"
+#include "Rtt_LinuxUtils.h"
+#include "Rtt_LinuxConsoleApp.h"
+#include "Rtt_LinuxDisplayObject.h"
+#include <sys/inotify.h>
+
+enum sdl
+{
+	OnOpenProject = SDL_USEREVENT + 1,
+	OnNewProject,
+	OnCloneProject,
+	OnBuild,
+	OnOpenInEditor,
+	OnRelaunch,
+	OnCloseProject,
+	onCloseDialog,
+	OnOpenDocumentation,
+	OnOpenSampleProjects,
+	OnAbout,
+	OnShowProjectFiles,
+	OnShowProjectSandbox,
+	OnClearProjectSandbox,
+	OnRelaunchLastProject,
+	OnOpenPreferences,
+	OnFileBrowserSelected,
+	OnFileSystemEvent,
+	OnBuildLinux,
+	OnBuildAndroid,
+	OnBuildHTML5,
+	OnRotateLeft,
+	OnRotateRight,
+	OnShake,
+	OnZoomIn,
+	OnZoomOut,
+	OnSetFocusConsole,
+	OnStyleColorsLight,
+	OnStyleColorsClassic,
+	OnStyleColorsDark,
+	OnViewAs,
+	OnChangeView,
+	OnWindowNormal,
+	OnWindowMinimized,
+	OnWindowMaximized,
+	OnWindowFullscreen,
+	OnMouseCursorVisible,
+	OnSetCursor,
+	OnRuntimeError,
+	OnPreferencesChanged
+};
 
 namespace Rtt
 {
-	wxDECLARE_EVENT(eventOpenProject, wxCommandEvent);
-	wxDECLARE_EVENT(eventRelaunchProject, wxCommandEvent);
-	wxDECLARE_EVENT(eventWelcomeProject, wxCommandEvent);
+	void PushEvent(int evt);
 
-	class SolarGLCanvas;
-
-	// the main frame
-	class SolarApp : public wxFrame
+	struct SolarApp : public ref_counted
 	{
-	public:
-		SolarApp();
+		SolarApp(const std::string& resourceDir);
 		virtual ~SolarApp();
 
-		Runtime* GetRuntime() { return fContext->GetRuntime(); }
-		LinuxPlatform* GetPlatform() const { return fContext->GetPlatform(); }
+		bool InitSDL();
+		virtual bool Init();
+		virtual bool LoadApp(const std::string& path);
+		void Run();
+		bool PollEvents();
 
-		void OnIconized(wxIconizeEvent& event);
-		virtual void OnClose(wxCloseEvent& event);
-		void ChangeSize(int newWidth, int newHeight);
-		SolarGLCanvas* GetCanvas() const { return fSolarGLCanvas; }
+		Runtime* GetRuntime() const { return fContext ? fContext->GetRuntime() : NULL; }
+		LinuxPlatform* GetPlatform() const { return fContext ? fContext->GetPlatform() : NULL; }
+
+		void OnIconized();
+		void SetWindowSize(int newWidth, int newHeight);
 		SolarAppContext* GetContext() const { return fContext; }
-		void ResetWindowSize();
-		bool CreateWindow(const std::string& resourcesDir);
 
-		virtual bool Start(const std::string& resourcesDir);
-		virtual void GetSavedZoom(int& width, int& height) {}
 		virtual bool IsRunningOnSimulator() { return false; }
+		bool IsSuspended() const { return GetRuntime()->IsSuspended(); }
 
-		wxStaticText* suspendedText;
-		SolarGLCanvas* fSolarGLCanvas;
-		SolarAppContext* fContext;
-		std::string fAppPath;
-		std::string fProjectPath;
+		inline bool IsHomeScreen(const std::string& appName) { return appName.compare(HOMESCREEN_ID) == 0; }
 
-		wxDECLARE_EVENT_TABLE();
+		void RenderGUI();
+		inline void Pause() { fContext->Pause(); }
+		inline void Resume() { fContext->Resume(); }
+		inline void SetActivityIndicator(bool visible) { fActivityIndicator = visible; }
+		void Log(const char* buf, int len);
+
+		bool IsFullScreen() { return false; }
+		bool IsMinimized() { return false; }
+		bool IsIconized() { return false; }
+		bool IsMaximized() { return false; }
+
+		inline Config& GetConfig() { return fConfig; }
+		inline Config& GetPwdStore() { return fPwdStore; }
+
+		void AddDisplayObject(LinuxDisplayObject* obj);
+		void RemoveDisplayObject(LinuxDisplayObject* obj);
+		NativeAlertRef ShowNativeAlert(const char* title, const char* msg, const char** buttonLabels, U32 numButtons, LuaResource* resource);
+		virtual void StartConsole() {}
+		virtual void CreateMenu() {}
+		const std::string& GetAppPath() const { return fContext->GetAppPath(); }
+		const std::string& GetAppName() const { return fContext->GetAppName(); }
+		const std::string& GetSaveFolder() const { return fContext->GetSaveFolder(); }
+		void GetWindowPosition(int* x, int* y);
+		void GetWindowSize(int* w, int* h);
+		void SetIcon();
+
+		std::string GetTitle() const { return fContext->GetTitle(); }
+		void SetTitle(const std::string& name) { fContext->SetTitle(name); }
+
+		virtual int GetMenuHeight() const { return 0; }
+
+	protected:
+
+		virtual void SolarEvent(const SDL_Event& e) {}
+		bool DispathNativeObjectsEvent(const SDL_Event& e);
+
+		smart_ptr<SolarAppContext> fContext;
+		SDL_Window* fWindow;
+		SDL_GLContext fGLcontext;
+
+		std::string fResourceDir;
+		Config fConfig;
+		Config fPwdStore;
+		smart_ptr<LinuxMouseListener> fMouse;
+
+		// GUI
+		ImGuiContext* fImCtx;
+		smart_ptr<DlgMenu> fMenu;
+		smart_ptr<Window> fDlg;
+		bool fActivityIndicator;
+		std::vector<LinuxDisplayObject*> fNativeObjects;
+
+		// console
+		std::string fLogData;
+		smart_ptr<ConsoleWindow> fConsole;
 	};
 
-	//  the canvas window
-	class SolarGLCanvas : public wxGLCanvas
+	//
+	// FileWatcher
+	//
+	struct FileWatcher : public ref_counted
 	{
-	public:
-		SolarGLCanvas(SolarApp* parent, const int* vAttrs);
-		~SolarGLCanvas();
+		FileWatcher();
+		virtual ~FileWatcher();
 
-		void OnChar(wxKeyEvent& event);
-		void OnSize(wxSizeEvent& event);
-		void Render();
+		bool Start(const std::string& folder);
+		void Stop();
+
+		// thread func
+		void Watch();
 
 	private:
-		wxGLContext* fGLContext;
-		wxDECLARE_EVENT_TABLE();
+		smart_ptr<mythread> fThread;
+		int m_inotify_fd;
+		int m_watch_descriptor;
 	};
+
 
 }
 
-extern Rtt::SolarApp* solarApp;
+extern smart_ptr<Rtt::SolarApp> app;
 
 
 #endif // Rtt_LINUX_CONTEXT_H

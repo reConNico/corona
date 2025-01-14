@@ -1,5 +1,4 @@
 #include "Rtt_LinuxUtils.h"
-#include "Rtt_Assert.h"
 #include "Rtt_LinuxCrypto.h"
 #include "string.h"
 #include <limits.h>
@@ -14,9 +13,15 @@
 #include <iterator>
 #include <sys/time.h>
 #include <sys/timeb.h>
+#include <fcntl.h>
+
+
+#include <openssl/evp.h>
+
 
 using namespace std;
 
+#define SOLAR2D_BASEDIR ".Solar2D"
 uint32_t GetTicks()
 {
 	static timeb s_start_time;
@@ -46,7 +51,7 @@ string& rtrim(string& str, const string& chars)
 	return str;
 }
 
-string& trim(string& str, const std::string& chars)
+string& trim(string& str, const string& chars)
 {
 	return ltrim(rtrim(str, chars), chars);
 }
@@ -118,9 +123,42 @@ string CalculateMD5(const string& filename)
 
 string GetRecentDocsPath()
 {
-	std::string recent_path = GetHomePath();
-	recent_path += "/.Solar2D/recent_projects.conf";
-	return recent_path;
+	string path = GetHomePath();
+	path.append("/" SOLAR2D_BASEDIR "/recent.conf");
+	return path;
+}
+
+string GetSandboxPath(const string& appName)
+{
+	string path = GetHomePath();
+	path.append("/" SOLAR2D_BASEDIR "/Sandbox/");
+	path.append(appName);
+	return path;
+}
+
+string GetConfigPath(const string& appName)
+{
+	string path = GetHomePath();
+	path.append("/" SOLAR2D_BASEDIR "/Sandbox/");
+	path.append(appName);
+	path.append("/app.conf");
+	return path;
+}
+
+string GetKeystorePath(const string& appName)
+{
+	string path = GetHomePath();
+	path.append("/" SOLAR2D_BASEDIR "/Sandbox/");
+	path.append(appName);
+	path.append("/keystore.conf");
+	return path;
+}
+
+string GetPluginsPath()
+{
+	string path = GetHomePath();
+	path.append("/" SOLAR2D_BASEDIR "/Plugins");
+	return path;
 }
 
 bool ReadRecentDocs(vector<pair<string, string>>& recentDocs)
@@ -132,7 +170,7 @@ bool ReadRecentDocs(vector<pair<string, string>>& recentDocs)
 		string line;
 		while (getline(f, line))
 		{
-			std::vector<std::string> items;
+			vector<string> items;
 			splitString(items, line, "=");
 			if (items.size() == 2 && items[0].size() > 0 && items[1].size() > 0)
 			{
@@ -145,7 +183,7 @@ bool ReadRecentDocs(vector<pair<string, string>>& recentDocs)
 	return false;
 }
 
-void UpdateRecentDocs(const std::string& appName, const std::string& path)
+void UpdateRecentDocs(const string& appName, const string& path)
 {
 	vector<pair<string, string>> recentDocs;
 	if (ReadRecentDocs(recentDocs))
@@ -174,4 +212,91 @@ void UpdateRecentDocs(const std::string& appName, const std::string& path)
 			f << recentDocs[i].first << "=" << recentDocs[i].second << "\n";
 		}
 	}
+}
+
+bool OpenURL(const string& url)
+{
+	string cmd("xdg-open \"");
+	cmd.append(url);
+	cmd.append("\"");
+	return system(cmd.c_str()) == 0;
+}
+
+//
+// Enrypt/Decrypt
+//
+
+unsigned char* key = (unsigned char*)"01234567890123456789012345678901"; // A 256 bit key
+unsigned char* iv = (unsigned char*)"0123456789012345"; // A 128 bit IV
+
+string Encrypt(const string& str)
+{
+	// Buffer for ciphertext. Ensure the buffer is long enough for the ciphertext which may be longer than the plaintext.
+	unique_ptr<unsigned char> ciphertext((unsigned char*)malloc(str.size() + 128));
+	int ciphertext_len = -1;
+
+	EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+	if (ctx)
+	{
+		if (1 == EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv))
+		{
+			int len;
+			if (1 == EVP_EncryptUpdate(ctx, ciphertext.get(), &len, (unsigned char*)str.c_str(), str.size()))
+			{
+				ciphertext_len = len;
+				if (1 == EVP_EncryptFinal_ex(ctx, ciphertext.get() + len, &len))
+				{
+					ciphertext_len += len;
+				}
+			}
+		}
+		EVP_CIPHER_CTX_free(ctx);
+	}
+
+	string hex;
+	if (ciphertext_len > 0)
+	{
+		for (int i = 0; i < ciphertext_len; i++)
+		{
+			char s[3];
+			snprintf(s, sizeof(s), "%02X", ciphertext.get()[i]);
+			hex.append(s);
+		}
+	}
+	return hex;
+}
+
+string Decrypt(const string& str)
+{
+	int ciphertext_len = str.size() / 2;
+	unsigned char* ciphertext = (unsigned char*)malloc(ciphertext_len);
+	for (int i = 0; i < ciphertext_len; i++)
+	{
+		string byteString = str.substr(i * 2, 2);
+		char byte = (char)strtol(byteString.c_str(), NULL, 16);
+		ciphertext[i] = byte;
+	}
+
+	// Buffer for ciphertext. Ensure the buffer is long enough for the ciphertext which may be longer than the plaintext.
+	unique_ptr<unsigned char> decryptedtext((unsigned char*)malloc(str.size()));
+
+	int decryptedtext_len = -1;
+	EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+	if (ctx)
+	{
+		if (1 == EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv))
+		{
+			int len;
+			if (1 == EVP_DecryptUpdate(ctx, decryptedtext.get(), &len, ciphertext, ciphertext_len))
+			{
+				decryptedtext_len = len;
+				if (1 == EVP_DecryptFinal_ex(ctx, decryptedtext.get() + len, &len))
+				{
+					decryptedtext_len += len;
+				}
+			}
+		}
+		EVP_CIPHER_CTX_free(ctx);
+	}
+	return 	decryptedtext_len > 0 ? string((const char*)decryptedtext.get(), decryptedtext_len) : "";
 }

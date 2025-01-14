@@ -14,7 +14,7 @@
 #include "CoronaLua.h"
 #include "Rtt_PlatformDisplayObject.h"
 #include "Rtt_LinuxContainer.h"
-#include <wx/window.h>
+#include "SDL.h"
 
 #pragma region Forward Declarations
 
@@ -36,12 +36,13 @@ namespace Rtt
 	class LinuxDisplayObject : public PlatformDisplayObject
 	{
 	public:
-		LinuxDisplayObject(const Rect &bounds, const char *elementType);
+		LinuxDisplayObject(const Rect &bounds);
 		virtual ~LinuxDisplayObject();
 
 		void SetBackgroundVisible(bool isVisible);
 		virtual bool CanCull() const;
 		virtual void Draw(Renderer& renderer) const override {}
+		virtual void Draw() {}		// for ImGui renderer
 		virtual void GetSelfBounds(Rect &rect) const;
 		virtual int ValueForKey(lua_State *L, const char key[]) const;
 		virtual bool SetValueForKey(lua_State *L, const char key[], int valueIndex);
@@ -49,15 +50,12 @@ namespace Rtt
 		virtual void Prepare(const Display &display) override;
 		void showControls(bool val);
 		void setBackgroundColor(Uint8 r, Uint8 g, Uint8 b, Uint8 a);
+		virtual bool ProcessEvent(const SDL_Event& evt) { return false; }
 
 	protected:
 
 		void addEventListener(lua_State* L);
-		wxWindow *fWindow;
 		CoronaLuaRef fLuaReference;
-
-	private:
-
-		Rect fSelfBounds;
+		Rect fBounds;
 	};
 }; // namespace Rtt

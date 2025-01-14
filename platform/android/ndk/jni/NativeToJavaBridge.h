@@ -195,6 +195,7 @@ class NativeToJavaBridge
 		int TextFieldCreate( int id, int left, int top, int width, int height, int isSingleLine );
 		void TextFieldSetReturnKey( int id, const char * imeType );
 		void TextFieldSetSelection( int id, int startPosition, int endPosition );
+		bool TextFieldGetSelection(int id, int& startPosition, int& endPosition);
 		void TextFieldSetPlaceholder( int id, const char * placeholder );
 		void TextFieldSetColor( int id, int r, int g, int b, int a );
 		void TextFieldSetText( int id, const char * text );
@@ -303,6 +304,9 @@ class NativeToJavaBridge
 	public:
 		void SetSystemUiVisibility( const char *visibility );
 		void GetSystemUiVisibility( Rtt::String * align );
+
+	public:
+		void SetNavigationBarColor( double red, double green, double blue );
 
 	public:
 		static bool DecodeBase64( const Rtt::Data<const char> & payload, Rtt::Data<char> & data );
